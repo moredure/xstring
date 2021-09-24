@@ -1,10 +1,10 @@
 package xstrings
 
 import (
+	"strings"
 	"unicode"
 	"unicode/utf8"
 	"unsafe"
-	"strings"
 )
 
 type ASCIISet [8]uint32
@@ -130,9 +130,7 @@ func ToUpper(s string) string {
 		}
 		hasLower = hasLower || ('a' <= c && c <= 'z')
 	}
-
-	if isASCII { // optimize for ASCII-only 
-		.
+	if isASCII {
 		if !hasLower {
 			return s
 		}
