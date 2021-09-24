@@ -184,21 +184,16 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 // TrimSpace returns a slice of the string s, with all leading
 // and trailing white space removed, as defined by Unicode.
 func TrimSpace(s string) string {
-	// Fast path for ASCII: look for the first ASCII non-space byte
 	start := 0
 	for ; start < len(s); start++ {
 		c := s[start]
 		if c >= utf8.RuneSelf {
-			// If we run into a non-ASCII byte, fall back to the
-			// slower unicode-aware method on the remaining bytes
 			return strings.TrimFunc(s[start:], unicode.IsSpace)
 		}
 		if asciiSpace[c] == 0 {
 			break
 		}
 	}
-
-	// Now look for the first ASCII non-space byte from the end
 	stop := len(s)
 	for ; stop > start; stop-- {
 		c := s[stop-1]
@@ -209,10 +204,6 @@ func TrimSpace(s string) string {
 			break
 		}
 	}
-
-	// At this point s[start:stop] starts and ends with an ASCII
-	// non-space bytes, so we're done. Non-ASCII cases have already
-	// been handled above.
 	return s[start:stop]
 }
 
@@ -221,20 +212,12 @@ func TrimSpace(s string) string {
 // according to the mapping function. If mapping returns a negative value, the character is
 // dropped from the string with no replacement.
 func Map(mapping func(rune) rune, s string) string {
-	// In the worst case, the string can grow when mapped, making
-	// things unpleasant. But it's so rare we barge in assuming it's
-	// fine. It could also shrink but that falls out naturally.
-
-	// The output buffer b is initialized on demand, the first
-	// time a character differs.
 	var b strings.Builder
-
 	for i, c := range s {
 		r := mapping(c)
 		if r == c && c != utf8.RuneError {
 			continue
 		}
-
 		var width int
 		if c == utf8.RuneError {
 			c, width = utf8.DecodeRuneInString(s[i:])
@@ -244,33 +227,23 @@ func Map(mapping func(rune) rune, s string) string {
 		} else {
 			width = utf8.RuneLen(c)
 		}
-
 		b.Grow(len(s) + utf8.UTFMax)
 		b.WriteString(s[:i])
 		if r >= 0 {
 			b.WriteRune(r)
 		}
-
 		s = s[i+width:]
 		break
 	}
-
-	// Fast path for unchanged input
-	if b.Cap() == 0 { // didn't call b.Grow above
+	if b.Cap() == 0 {
 		return s
 	}
-
 	for _, c := range s {
 		r := mapping(c)
-
 		if r >= 0 {
-			// common case
-			// Due to inlining, it is more performant to determine if WriteByte should be
-			// invoked rather than always call WriteRune
 			if r < utf8.RuneSelf {
 				b.WriteByte(byte(r))
 			} else {
-				// r is not a ASCII rune.
 				b.WriteRune(r)
 			}
 		}
