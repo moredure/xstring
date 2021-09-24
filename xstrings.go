@@ -1,7 +1,9 @@
 package xstrings
 
 import (
+	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 type ASCIISet [8]uint32
@@ -114,6 +116,100 @@ func TrimLeftByte(s string, b rune) string {
 
 func TrimRune(s string, b rune) string {
 	return TrimLeftByte(TrimRightByte(s, b), b)
+}
+
+// ToUpper returns s with all Unicode letters mapped to their upper case.
+func ToUpper(s string) string {
+	isASCII, hasLower := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasLower = hasLower || ('a' <= c && c <= 'z')
+	}
+
+	if isASCII { // optimize for ASCII-only strings.
+		if !hasLower {
+			return s
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if 'a' <= c && c <= 'z' {
+				c -= 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return *(*string)(unsafe.Pointer(&b))
+	}
+	return Map(unicode.ToUpper, s)
+}
+
+// ToLower returns s with all Unicode letters mapped to their lower case.
+func ToLower(s string) string {
+	isASCII, hasUpper := true, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf {
+			isASCII = false
+			break
+		}
+		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
+	}
+
+	if isASCII { // optimize for ASCII-only strings.
+		if !hasUpper {
+			return s
+		}
+		b := make([]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			c := s[i]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			b[i] = c
+		}
+		return *(*string)(unsafe.Pointer(&b))
+	}
+	return Map(unicode.ToLower, s)
+}
+
+
+// TrimSpace returns a slice of the string s, with all leading
+// and trailing white space removed, as defined by Unicode.
+func TrimSpace(s string) string {
+	// Fast path for ASCII: look for the first ASCII non-space byte
+	start := 0
+	for ; start < len(s); start++ {
+		c := s[start]
+		if c >= utf8.RuneSelf {
+			// If we run into a non-ASCII byte, fall back to the
+			// slower unicode-aware method on the remaining bytes
+			return TrimFunc(s[start:], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// Now look for the first ASCII non-space byte from the end
+	stop := len(s)
+	for ; stop > start; stop-- {
+		c := s[stop-1]
+		if c >= utf8.RuneSelf {
+			return TrimRightFunc(s[start:stop], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// At this point s[start:stop] starts and ends with an ASCII
+	// non-space bytes, so we're done. Non-ASCII cases have already
+	// been handled above.
+	return s[start:stop]
 }
 
 //func TrimLeftByte(s string, b byte) string {
