@@ -250,6 +250,35 @@ func Map(mapping func(rune) rune, s string) string {
 	return b.String()
 }
 
+
+func CutIfLongerThanN(text string, n int) string {
+	if len([]rune(text)) > n {
+		text = substring(text, 0, n)
+	}
+	return text
+}
+
+func substring(s string, start int, end int) string {
+	idx, i := 0, 0
+	for j := range s {
+		if i == start {
+			idx = j
+		}
+		if i == end {
+			return s[idx:j]
+		}
+		i++
+	}
+	return s[idx:]
+}
+
+func EmptyIfLongerThanN(text string, n int) string {
+	if len([]rune(text)) > n {
+		return ""
+	}
+	return text
+}
+
 //func TrimLeftByte(s string, b byte) string {
 //	l := len(s)
 //	for l > 0 {
